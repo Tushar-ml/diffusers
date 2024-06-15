@@ -819,6 +819,7 @@ class StableDiffusionXLControlNetPipeline(
         image_is_pil_list = isinstance(image, list) and isinstance(image[0], PIL.Image.Image)
         image_is_tensor_list = isinstance(image, list) and isinstance(image[0], torch.Tensor)
         image_is_np_list = isinstance(image, list) and isinstance(image[0], np.ndarray)
+        image_is_none = image == None
 
         if (
             not image_is_pil
@@ -827,6 +828,7 @@ class StableDiffusionXLControlNetPipeline(
             and not image_is_pil_list
             and not image_is_tensor_list
             and not image_is_np_list
+            and not image_is_none
         ):
             raise TypeError(
                 f"image must be passed and be one of PIL image, numpy array, torch tensor, list of PIL images, list of numpy arrays or list of torch tensors, but is {type(image)}"
@@ -1201,6 +1203,9 @@ class StableDiffusionXLControlNetPipeline(
         callback = kwargs.pop("callback", None)
         callback_steps = kwargs.pop("callback_steps", None)
 
+        if original_size is None:
+            original_size = (width, height)
+
         if callback is not None:
             deprecate(
                 "callback",
@@ -1232,24 +1237,24 @@ class StableDiffusionXLControlNetPipeline(
             )
 
         # 1. Check inputs. Raise error if not correct
-        # self.check_inputs(
-        #     prompt,
-        #     prompt_2,
-        #     image,
-        #     callback_steps,
-        #     negative_prompt,
-        #     negative_prompt_2,
-        #     prompt_embeds,
-        #     negative_prompt_embeds,
-        #     pooled_prompt_embeds,
-        #     ip_adapter_image,
-        #     ip_adapter_image_embeds,
-        #     negative_pooled_prompt_embeds,
-        #     controlnet_conditioning_scale,
-        #     control_guidance_start,
-        #     control_guidance_end,
-        #     callback_on_step_end_tensor_inputs,
-        # )
+        self.check_inputs(
+            prompt,
+            prompt_2,
+            image,
+            callback_steps,
+            negative_prompt,
+            negative_prompt_2,
+            prompt_embeds,
+            negative_prompt_embeds,
+            pooled_prompt_embeds,
+            ip_adapter_image,
+            ip_adapter_image_embeds,
+            negative_pooled_prompt_embeds,
+            controlnet_conditioning_scale,
+            control_guidance_start,
+            control_guidance_end,
+            callback_on_step_end_tensor_inputs,
+        )
 
         self._guidance_scale = guidance_scale
         self._clip_skip = clip_skip
