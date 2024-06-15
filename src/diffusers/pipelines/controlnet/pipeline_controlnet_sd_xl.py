@@ -720,7 +720,8 @@ class StableDiffusionXLControlNetPipeline(
             or is_compiled
             and isinstance(self.controlnet._orig_mod, ControlNetModel)
         ):
-            self.check_image(image, prompt, prompt_embeds)
+            if image is not None:
+                self.check_image(image, prompt, prompt_embeds)
         elif (
             isinstance(self.controlnet, MultiControlNetModel)
             or is_compiled
@@ -739,7 +740,8 @@ class StableDiffusionXLControlNetPipeline(
                 )
 
             for image_ in image:
-                self.check_image(image_, prompt, prompt_embeds)
+                if image_ is not None:
+                    self.check_image(image_, prompt, prompt_embeds)
         else:
             assert False
 
@@ -1396,8 +1398,6 @@ class StableDiffusionXLControlNetPipeline(
         # 7.2 Prepare added time ids & embeddings
         if isinstance(image, list):
             original_size = original_size or image[0].shape[-2:]
-        elif image is None:
-            original_size = (width, height)
         else:
             original_size = original_size or image.shape[-2:]
         target_size = target_size or (height, width)
