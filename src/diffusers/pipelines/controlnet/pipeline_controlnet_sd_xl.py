@@ -1396,6 +1396,8 @@ class StableDiffusionXLControlNetPipeline(
         # 7.2 Prepare added time ids & embeddings
         if isinstance(image, list):
             original_size = original_size or image[0].shape[-2:]
+        elif image is None:
+            original_size = (width, height)
         else:
             original_size = original_size or image.shape[-2:]
         target_size = target_size or (height, width)
