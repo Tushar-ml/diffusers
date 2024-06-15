@@ -1232,24 +1232,24 @@ class StableDiffusionXLControlNetPipeline(
             )
 
         # 1. Check inputs. Raise error if not correct
-        self.check_inputs(
-            prompt,
-            prompt_2,
-            image,
-            callback_steps,
-            negative_prompt,
-            negative_prompt_2,
-            prompt_embeds,
-            negative_prompt_embeds,
-            pooled_prompt_embeds,
-            ip_adapter_image,
-            ip_adapter_image_embeds,
-            negative_pooled_prompt_embeds,
-            controlnet_conditioning_scale,
-            control_guidance_start,
-            control_guidance_end,
-            callback_on_step_end_tensor_inputs,
-        )
+        # self.check_inputs(
+        #     prompt,
+        #     prompt_2,
+        #     image,
+        #     callback_steps,
+        #     negative_prompt,
+        #     negative_prompt_2,
+        #     prompt_embeds,
+        #     negative_prompt_embeds,
+        #     pooled_prompt_embeds,
+        #     ip_adapter_image,
+        #     ip_adapter_image_embeds,
+        #     negative_pooled_prompt_embeds,
+        #     controlnet_conditioning_scale,
+        #     control_guidance_start,
+        #     control_guidance_end,
+        #     callback_on_step_end_tensor_inputs,
+        # )
 
         self._guidance_scale = guidance_scale
         self._clip_skip = clip_skip
@@ -1312,25 +1312,10 @@ class StableDiffusionXLControlNetPipeline(
             )
 
         # 4. Prepare image
-        if isinstance(controlnet, ControlNetModel):
-            image = self.prepare_image(
-                image=image,
-                width=width,
-                height=height,
-                batch_size=batch_size * num_images_per_prompt,
-                num_images_per_prompt=num_images_per_prompt,
-                device=device,
-                dtype=controlnet.dtype,
-                do_classifier_free_guidance=self.do_classifier_free_guidance,
-                guess_mode=guess_mode,
-            )
-            height, width = image.shape[-2:]
-        elif isinstance(controlnet, MultiControlNetModel):
-            images = []
-
-            for image_ in image:
-                image_ = self.prepare_image(
-                    image=image_,
+        if image is not None:
+            if isinstance(controlnet, ControlNetModel):
+                image = self.prepare_image(
+                    image=image,
                     width=width,
                     height=height,
                     batch_size=batch_size * num_images_per_prompt,
@@ -1340,13 +1325,29 @@ class StableDiffusionXLControlNetPipeline(
                     do_classifier_free_guidance=self.do_classifier_free_guidance,
                     guess_mode=guess_mode,
                 )
+                height, width = image.shape[-2:]
+            elif isinstance(controlnet, MultiControlNetModel):
+                images = []
 
-                images.append(image_)
+                for image_ in image:
+                    image_ = self.prepare_image(
+                        image=image_,
+                        width=width,
+                        height=height,
+                        batch_size=batch_size * num_images_per_prompt,
+                        num_images_per_prompt=num_images_per_prompt,
+                        device=device,
+                        dtype=controlnet.dtype,
+                        do_classifier_free_guidance=self.do_classifier_free_guidance,
+                        guess_mode=guess_mode,
+                    )
 
-            image = images
-            height, width = image[0].shape[-2:]
-        else:
-            assert False
+                    images.append(image_)
+
+                image = images
+                height, width = image[0].shape[-2:]
+            else:
+                assert False
 
         # 5. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(
@@ -1485,18 +1486,21 @@ class StableDiffusionXLControlNetPipeline(
                         controlnet_cond_scale = controlnet_cond_scale[0]
                     cond_scale = controlnet_cond_scale * controlnet_keep[i]
 
-                down_block_res_samples, mid_block_res_sample = self.controlnet(
-                    control_model_input,
-                    t,
-                    encoder_hidden_states=controlnet_prompt_embeds,
-                    controlnet_cond=image,
-                    conditioning_scale=cond_scale,
-                    guess_mode=guess_mode,
-                    added_cond_kwargs=controlnet_added_cond_kwargs,
-                    return_dict=False,
-                )
+                if image is not None:
+                    down_block_res_samples, mid_block_res_sample = self.controlnet(
+                        control_model_input,
+                        t,
+                        encoder_hidden_states=controlnet_prompt_embeds,
+                        controlnet_cond=image,
+                        conditioning_scale=cond_scale,
+                        guess_mode=guess_mode,
+                        added_cond_kwargs=controlnet_added_cond_kwargs,
+                        return_dict=False,
+                    )
+                else:
+                    down_block_res_samples, mid_block_res_sample = None, None
 
-                if guess_mode and self.do_classifier_free_guidance:
+                if guess_mode and self.do_classifier_free_guidance and (down_block_res_samples != None or mid_block_res_sample != None):
                     # Infered ControlNet only for the conditional batch.
                     # To apply the output of ControlNet to both the unconditional and conditional batches,
                     # add 0 to the unconditional batch to keep it unchanged.
