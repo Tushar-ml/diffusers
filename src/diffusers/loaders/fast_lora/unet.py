@@ -55,7 +55,7 @@ def load_lora_into_unet(
         for key in keys
     ):
         # Load the layers corresponding to UNet.
-        logger.info(f"Loading {cls.unet_name}.")
+        # logger.info(f"Loading {cls.unet_name}.")
 
         unet_keys = [k for k in keys if k.startswith(cls.unet_name)]
         state_dict = {
@@ -78,7 +78,7 @@ def load_lora_into_unet(
         # Otherwise, we're dealing with the old format. This means the `state_dict` should only
         # contain the module names of the `unet` as its keys WITHOUT any prefix.
         warn_message = "You have saved the LoRA weights using the old format. To convert the old LoRA weights to the new format, you can first load them in a dictionary and then create a new dictionary like the following: `new_state_dict = {f'unet.{module_name}': params for module_name, params in old_state_dict.items()}`."
-        logger.warning(warn_message)
+        # logger.warning(warn_message)
 
     # unet.load_attn
     _load_attn_procs(
@@ -107,7 +107,7 @@ def _convert_state_dict_legacy_attn_format(self, state_dict, network_alphas):
         )
         if is_text_encoder_present:
             warn_message = "The state_dict contains LoRA params corresponding to the text encoder which are not being used here. To use both UNet and text encoder related LoRA params, use [`pipe.load_lora_weights()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraLoaderMixin.load_lora_weights)."
-            logger.warning(warn_message)
+            # logger.warning(warn_message)
         unet_keys = [k for k in state_dict.keys() if k.startswith(self.unet_name)]
         state_dict = {
             k.replace(f"{self.unet_name}.", ""): v
@@ -272,9 +272,9 @@ def _load_attn_procs(
                         getattr(component, "_hf_hook"), AlignDevicesHook
                     )
 
-                    logger.info(
-                        "Accelerate hooks detected. Since you have called `load_lora_weights()`, the previous hooks will be first removed. Then the LoRA parameters will be loaded and the hooks will be applied again."
-                    )
+                    # logger.info(
+                    #     "Accelerate hooks detected. Since you have called `load_lora_weights()`, the previous hooks will be first removed. Then the LoRA parameters will be loaded and the hooks will be applied again."
+                    # )
                     remove_hook_from_module(
                         component, recurse=is_sequential_cpu_offload
                     )
