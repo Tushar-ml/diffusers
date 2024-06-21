@@ -641,6 +641,11 @@ class StableDiffusionXLControlNetPipeline(
         control_guidance_end=1.0,
         callback_on_step_end_tensor_inputs=None,
     ):
+        if image is not None:
+            print("Image is None, Text to Image will run")
+        else:
+            print("Image is found, Text to Image with Controlnet will run")
+            
         if callback_steps is not None and (not isinstance(callback_steps, int) or callback_steps <= 0):
             raise ValueError(
                 f"`callback_steps` has to be a positive integer but is {callback_steps} of type"
