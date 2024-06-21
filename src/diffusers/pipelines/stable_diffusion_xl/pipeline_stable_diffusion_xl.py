@@ -866,6 +866,7 @@ class StableDiffusionXLPipeline(
             Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
         ] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
+        end_cfg: Optional[float] = None,
         **kwargs,
     ):
         r"""
@@ -1196,7 +1197,12 @@ class StableDiffusionXLPipeline(
             for i, t in enumerate(timesteps):
                 if self.interrupt:
                     continue
-
+                
+                if end_cfg is not None and i/num_inference_steps > end_cfg and self.do_classifier_free_guidance:
+                    self.do_classifier_free_guidance = False
+                    prompt_embeds = torch.chunk(prompt_embeds, 2, dim=0)[-1]
+                    add_text_embeds = torch.chunk(add_text_embeds, 2, dim=0)[-1]
+                    prompt_embeds = torch.chunk(prompt_embeds, 2, dim=0)[-1]
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = torch.cat([latents] * 2) if self.do_classifier_free_guidance else latents
 
