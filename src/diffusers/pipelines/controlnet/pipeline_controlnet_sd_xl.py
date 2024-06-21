@@ -717,14 +717,14 @@ class StableDiffusionXLControlNetPipeline(
         )
         if (
             isinstance(self.controlnet, ControlNetModel)
-            or is_compiled
+            or is_compiled and image is not None
             and isinstance(self.controlnet._orig_mod, ControlNetModel)
         ):
-            if image is not None:
-                self.check_image(image, prompt, prompt_embeds)
+            
+            self.check_image(image, prompt, prompt_embeds)
         elif (
             isinstance(self.controlnet, MultiControlNetModel)
-            or is_compiled
+            or is_compiled and image is not None
             and isinstance(self.controlnet._orig_mod, MultiControlNetModel)
         ):
             if not isinstance(image, list):
