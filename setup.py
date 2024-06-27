@@ -135,6 +135,7 @@ _deps = [
     "transformers>=4.41.2",
     "urllib3<=2.0.0",
     "black",
+    "git+https://github.com/siliconflow/onediff.git"
 ]
 
 # this is a lookup table with items like:

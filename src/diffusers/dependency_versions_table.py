@@ -43,4 +43,5 @@ deps = {
     "transformers": "transformers>=4.41.2",
     "urllib3": "urllib3<=2.0.0",
     "black": "black",
+    "git+https://github.com/siliconflow/onediff.git": "git+https://github.com/siliconflow/onediff.git",
 }

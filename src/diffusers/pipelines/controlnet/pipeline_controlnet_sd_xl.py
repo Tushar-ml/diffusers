@@ -633,6 +633,11 @@ class StableDiffusionXLControlNetPipeline(
         control_guidance_end=1.0,
         callback_on_step_end_tensor_inputs=None,
     ):
+        if image is not None:
+            print("Image is None, Text to Image will run")
+        else:
+            print("Image is found, Text to Image with Controlnet will run")
+
         if callback_steps is not None and (not isinstance(callback_steps, int) or callback_steps <= 0):
             raise ValueError(
                 f"`callback_steps` has to be a positive integer but is {callback_steps} of type"
@@ -709,13 +714,14 @@ class StableDiffusionXLControlNetPipeline(
         )
         if (
             isinstance(self.controlnet, ControlNetModel)
-            or is_compiled
+            or is_compiled and image is not None
             and isinstance(self.controlnet._orig_mod, ControlNetModel)
         ):
+            
             self.check_image(image, prompt, prompt_embeds)
         elif (
             isinstance(self.controlnet, MultiControlNetModel)
-            or is_compiled
+            or is_compiled and image is not None
             and isinstance(self.controlnet._orig_mod, MultiControlNetModel)
         ):
             if not isinstance(image, list):
@@ -731,7 +737,8 @@ class StableDiffusionXLControlNetPipeline(
                 )
 
             for image_ in image:
-                self.check_image(image_, prompt, prompt_embeds)
+                if image_ is not None:
+                    self.check_image(image_, prompt, prompt_embeds)
         else:
             assert False
 
@@ -811,6 +818,7 @@ class StableDiffusionXLControlNetPipeline(
         image_is_pil_list = isinstance(image, list) and isinstance(image[0], PIL.Image.Image)
         image_is_tensor_list = isinstance(image, list) and isinstance(image[0], torch.Tensor)
         image_is_np_list = isinstance(image, list) and isinstance(image[0], np.ndarray)
+        image_is_none = image == None
 
         if (
             not image_is_pil
@@ -819,6 +827,7 @@ class StableDiffusionXLControlNetPipeline(
             and not image_is_pil_list
             and not image_is_tensor_list
             and not image_is_np_list
+            and not image_is_none
         ):
             raise TypeError(
                 f"image must be passed and be one of PIL image, numpy array, torch tensor, list of PIL images, list of numpy arrays or list of torch tensors, but is {type(image)}"
@@ -1191,6 +1200,9 @@ class StableDiffusionXLControlNetPipeline(
         callback = kwargs.pop("callback", None)
         callback_steps = kwargs.pop("callback_steps", None)
 
+        if original_size is None:
+            original_size = (width, height)
+
         if callback is not None:
             deprecate(
                 "callback",
@@ -1222,24 +1234,24 @@ class StableDiffusionXLControlNetPipeline(
             )
 
         # 1. Check inputs. Raise error if not correct
-        self.check_inputs(
-            prompt,
-            prompt_2,
-            image,
-            callback_steps,
-            negative_prompt,
-            negative_prompt_2,
-            prompt_embeds,
-            negative_prompt_embeds,
-            pooled_prompt_embeds,
-            ip_adapter_image,
-            ip_adapter_image_embeds,
-            negative_pooled_prompt_embeds,
-            controlnet_conditioning_scale,
-            control_guidance_start,
-            control_guidance_end,
-            callback_on_step_end_tensor_inputs,
-        )
+        # self.check_inputs(
+        #     prompt,
+        #     prompt_2,
+        #     image,
+        #     callback_steps,
+        #     negative_prompt,
+        #     negative_prompt_2,
+        #     prompt_embeds,
+        #     negative_prompt_embeds,
+        #     pooled_prompt_embeds,
+        #     ip_adapter_image,
+        #     ip_adapter_image_embeds,
+        #     negative_pooled_prompt_embeds,
+        #     controlnet_conditioning_scale,
+        #     control_guidance_start,
+        #     control_guidance_end,
+        #     callback_on_step_end_tensor_inputs,
+        # )
 
         self._guidance_scale = guidance_scale
         self._clip_skip = clip_skip
@@ -1302,25 +1314,10 @@ class StableDiffusionXLControlNetPipeline(
             )
 
         # 4. Prepare image
-        if isinstance(controlnet, ControlNetModel):
-            image = self.prepare_image(
-                image=image,
-                width=width,
-                height=height,
-                batch_size=batch_size * num_images_per_prompt,
-                num_images_per_prompt=num_images_per_prompt,
-                device=device,
-                dtype=controlnet.dtype,
-                do_classifier_free_guidance=self.do_classifier_free_guidance,
-                guess_mode=guess_mode,
-            )
-            height, width = image.shape[-2:]
-        elif isinstance(controlnet, MultiControlNetModel):
-            images = []
-
-            for image_ in image:
-                image_ = self.prepare_image(
-                    image=image_,
+        if image is not None:
+            if isinstance(controlnet, ControlNetModel):
+                image = self.prepare_image(
+                    image=image,
                     width=width,
                     height=height,
                     batch_size=batch_size * num_images_per_prompt,
@@ -1330,13 +1327,29 @@ class StableDiffusionXLControlNetPipeline(
                     do_classifier_free_guidance=self.do_classifier_free_guidance,
                     guess_mode=guess_mode,
                 )
+                height, width = image.shape[-2:]
+            elif isinstance(controlnet, MultiControlNetModel):
+                images = []
 
-                images.append(image_)
+                for image_ in image:
+                    image_ = self.prepare_image(
+                        image=image_,
+                        width=width,
+                        height=height,
+                        batch_size=batch_size * num_images_per_prompt,
+                        num_images_per_prompt=num_images_per_prompt,
+                        device=device,
+                        dtype=controlnet.dtype,
+                        do_classifier_free_guidance=self.do_classifier_free_guidance,
+                        guess_mode=guess_mode,
+                    )
 
-            image = images
-            height, width = image[0].shape[-2:]
-        else:
-            assert False
+                    images.append(image_)
+
+                image = images
+                height, width = image[0].shape[-2:]
+            else:
+                assert False
 
         # 5. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(
@@ -1475,18 +1488,21 @@ class StableDiffusionXLControlNetPipeline(
                         controlnet_cond_scale = controlnet_cond_scale[0]
                     cond_scale = controlnet_cond_scale * controlnet_keep[i]
 
-                down_block_res_samples, mid_block_res_sample = self.controlnet(
-                    control_model_input,
-                    t,
-                    encoder_hidden_states=controlnet_prompt_embeds,
-                    controlnet_cond=image,
-                    conditioning_scale=cond_scale,
-                    guess_mode=guess_mode,
-                    added_cond_kwargs=controlnet_added_cond_kwargs,
-                    return_dict=False,
-                )
+                if image is not None:
+                    down_block_res_samples, mid_block_res_sample = self.controlnet(
+                        control_model_input,
+                        t,
+                        encoder_hidden_states=controlnet_prompt_embeds,
+                        controlnet_cond=image,
+                        conditioning_scale=cond_scale,
+                        guess_mode=guess_mode,
+                        added_cond_kwargs=controlnet_added_cond_kwargs,
+                        return_dict=False,
+                    )
+                else:
+                    down_block_res_samples, mid_block_res_sample = None, None
 
-                if guess_mode and self.do_classifier_free_guidance:
+                if guess_mode and self.do_classifier_free_guidance and (down_block_res_samples != None or mid_block_res_sample != None):
                     # Infered ControlNet only for the conditional batch.
                     # To apply the output of ControlNet to both the unconditional and conditional batches,
                     # add 0 to the unconditional batch to keep it unchanged.
